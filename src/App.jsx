@@ -183,16 +183,14 @@ export default function App() {
     if (!totals) return;
     setSending(true);
     try {
-      // เพิ่ม Proxy ตัวกลาง (cors-anywhere) เพื่อให้ยิงส่งจากหน้าเว็บ GitHub ได้สำเร็จ
-      await fetch("https://cors-anywhere.herokuapp.com/https://api.line.me/v2/bot/message/push", {
+      // เปลี่ยนมาใช้ลิงก์สั้นตัวหลักของ Vercel คลีนๆ สวยๆ เลยครับ bro
+      await fetch("https://bnn-sales-app.vercel.app/api/send-line", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${LINE_TOKEN}`,
         },
         body: JSON.stringify({
-          to: LINE_GROUP_ID,
-          messages: [{ type: "text", text: formatSummary(totals, notes) }],
+          message: formatSummary(totals, notes),
         }),
       });
       setSent(true);
