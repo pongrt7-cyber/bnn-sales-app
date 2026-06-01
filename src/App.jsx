@@ -4,6 +4,8 @@ import { ref, onValue, set, remove } from "firebase/database";
 
 const BRANCH = "BNN : 790";
 const DB_KEY = "sales_summary";
+const LINE_TOKEN = "DZtzVOrRGyk9bqfdYF/ubTGczoaaz6j7nWC6WuYIs1S6RagjkIXkZJIUYxeQaxbKTytwGmFtN6BuY6zyjvsjo46gVi8m3Co3giVwlSK6I69A3107tXSFFEId6zlEIOjYdqn4rDuxEf2OsBL51MSSMQdB04t89/1O/w1cDnyilFU=";
+const LINE_GROUP_ID = "C4b5cc9e7270d5164954d6e44eae8ae23";
 
 const SECTIONS = [
   {
@@ -90,8 +92,9 @@ export default function App() {
   const [flash, setFlash] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
-  // โหลดข้อมูลจาก Firebase แบบ real-time
   useEffect(() => {
     const dbRef = ref(db, DB_KEY);
     const unsub = onValue(dbRef, (snapshot) => {
@@ -116,19 +119,36 @@ export default function App() {
     }
   };
 
+  // ยอมให้ใส่ค่าติดลบได้เพื่อเอาไว้หักลบยอด
   const handleChange = (key, val) => {
+    if (val === "" || val === "-") {
+      setInputs(prev => ({ ...prev, [key]: val }));
+      return;
+    }
     const num = parseInt(val, 10);
-    setInputs(prev => ({ ...prev, [key]: isNaN(num) ? 0 : Math.max(0, num) }));
+    setInputs(prev => ({ ...prev, [key]: isNaN(num) ? 0 : num }));
   };
 
+  // ปุ่มกด - และ + สามารถกดลดลงต่ำกว่า 0 ได้เพื่อนำไปหักลบยอดรวม
   const handleStep = (key, delta) => {
-    setInputs(prev => ({ ...prev, [key]: Math.max(0, prev[key] + delta) }));
+    setInputs(prev => {
+      const currentVal = typeof prev[key] === "number" ? prev[key] : 0;
+      return { ...prev, [key]: currentVal + delta };
+    });
   };
 
   const handleUpdate = async () => {
     const base = totals ?? EMPTY();
-    const newTotals = Object.fromEntries(ALL_FIELDS.map(k => [k, (base[k] || 0) + (inputs[k] || 0)]));
+    // คํานวณยอดใหม่โดยการนำค่าไปบวก (ถ้า inputs เป็นลบ มันจะหักลบยอดสะสมให้อัตโนมัติ) และป้องกันไม่ให้ยอดสะสมรวมต่ำกว่า 0
+    const newTotals = Object.fromEntries(
+      ALL_FIELDS.map(k => {
+        const inputVal = typeof inputs[k] === "number" ? inputs[k] : 0;
+        const finalSum = (base[k] || 0) + inputVal;
+        return [k, Math.max(0, finalSum)];
+      })
+    );
     const newNotes = inputNote.trim() ? [...notes, { id: Date.now(), text: inputNote.trim() }] : notes;
+    
     setTotals(newTotals);
     setNotes(newNotes);
     setInputs(EMPTY());
@@ -159,6 +179,32 @@ export default function App() {
     });
   };
 
+  const handleSendLine = async () => {
+    if (!totals) return;
+    setSending(true);
+    try {
+      // เพิ่ม Proxy ตัวกลาง (cors-anywhere) เพื่อให้ยิงส่งจากหน้าเว็บ GitHub ได้สำเร็จ
+      await fetch("https://cors-anywhere.herokuapp.com/https://api.line.me/v2/bot/message/push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${LINE_TOKEN}`,
+        },
+        body: JSON.stringify({
+          to: LINE_GROUP_ID,
+          messages: [{ type: "text", text: formatSummary(totals, notes) }],
+        }),
+      });
+      setSent(true);
+      setTimeout(() => setSent(false), 3000);
+    } catch (e) {
+      alert("ส่งไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      console.error(e);
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#e0e7ff,#f0f4ff,#fce7f3)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Sarabun,sans-serif", color: "#64748b", fontSize: 15 }}>
       ⏳ กำลังโหลดข้อมูล...
@@ -180,6 +226,10 @@ export default function App() {
         .update-btn{background:rgba(99,102,241,0.85);border:1px solid rgba(255,255,255,0.6);color:#fff;font-size:15px;font-weight:700;padding:13px 52px;border-radius:50px;cursor:pointer;letter-spacing:1px;backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(99,102,241,0.35);transition:transform 0.1s,box-shadow 0.15s,background 0.15s;}
         .update-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(99,102,241,0.45);background:rgba(99,102,241,0.95);}
         .update-btn:active{transform:scale(0.97);}
+        .line-btn{background:rgba(0,185,0,0.85);border:1px solid rgba(255,255,255,0.6);color:#fff;font-size:15px;font-weight:700;padding:13px 40px;border-radius:50px;cursor:pointer;letter-spacing:1px;backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,185,0,0.3);transition:transform 0.1s,box-shadow 0.15s,background 0.15s;}
+        .line-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,185,0,0.45);background:rgba(0,185,0,0.95);}
+        .line-btn:active{transform:scale(0.97);}
+        .line-btn:disabled{opacity:0.5;cursor:default;transform:none;}
         .copy-btn{background:rgba(255,255,255,0.6);border:1px solid rgba(200,210,240,0.9);color:#4f46e5;padding:7px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;transition:background 0.15s;box-shadow:0 2px 6px rgba(0,0,0,0.05);}
         .copy-btn:hover{background:rgba(255,255,255,0.9);}
         .copy-btn:disabled{opacity:0.4;cursor:default;}
@@ -223,7 +273,7 @@ export default function App() {
                 <div className="field-label">{label}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <button className="step-btn" onClick={() => handleStep(key, -1)}>−</button>
-                  <input className="num-input" type="number" min="0" value={inputs[key]} onChange={e => handleChange(key, e.target.value)} />
+                  <input className="num-input" type="number" value={inputs[key]} onChange={e => handleChange(key, e.target.value)} />
                   <button className="step-btn" onClick={() => handleStep(key, 1)}>+</button>
                 </div>
               </div>
@@ -238,11 +288,11 @@ export default function App() {
         </div>
       </div>
 
-      <button className="update-btn" onClick={handleUpdate} style={{ marginBottom: 20 }}>
+      <button className="update-btn" onClick={handleUpdate} style={{ marginBottom: 12 }}>
         💾 UPDATE
       </button>
 
-      <div className="glass" style={{ width: "100%", maxWidth: 460, padding: "18px" }}>
+      <div className="glass" style={{ width: "100%", maxWidth: 460, padding: "18px", marginBottom: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <div className="label-text">สรุปยอด {saving && <span className="save-dot" />}</div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -252,12 +302,14 @@ export default function App() {
             </button>
           </div>
         </div>
+
         <div className={`summary-box ${flash ? "flash" : ""}`} style={{ marginBottom: notes.length ? 12 : 0 }}>
           {totals
             ? formatSummary(totals, notes)
             : <span style={{ color: "#94a3b8", fontFamily: "Sarabun,sans-serif", fontSize: 14 }}>ยังไม่มีข้อมูล กรอกแล้วกด UPDATE</span>
           }
         </div>
+
         {notes.length > 0 && (
           <div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8 }}>📝 หมายเหตุ</div>
@@ -269,9 +321,20 @@ export default function App() {
             ))}
           </div>
         )}
+
+        {/* ปุ่มส่ง LINE */}
+        <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
+          <button
+            className="line-btn"
+            onClick={handleSendLine}
+            disabled={!totals || sending}
+          >
+            {sending ? "⏳ กำลังส่ง..." : sent ? "✅ ส่งแล้ว!" : "ส่งไป LINE"}
+          </button>
+        </div>
       </div>
 
-      <div style={{ marginTop: 16, fontSize: 11, color: "#94a3b8" }}>กดปุ่มคัดลอกเพื่อนำไปวางได้เลย</div>
+      <div style={{ marginTop: 16, fontSize: 11, color: "#94a3b8" }}>กดปุ่มคัดลอกเพื่อนำไปวางได้เลย .pongก่อย</div>
     </div>
   );
 }
