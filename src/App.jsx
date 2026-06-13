@@ -37,10 +37,10 @@ function getTimeTH() {
   return `${h}:${m}:${s}`;
 }
 
+// เอา BNN และ วันที่ออกจาก formatSummary 
 function formatSummary(totals, notes) {
   const t = totals;
   const lines = [
-    BRANCH, getTodayTH(), ``,
     `iPhone = ${t.iphone}`,
     `App in = ${t.appIn}`,
     `Approve = ${t.approve}`,
@@ -121,11 +121,9 @@ export default function App() {
       const inputVal = parseInt(iphoneInputs[key]) || 0;
       if (inputVal !== 0) {
         const currentTotal = base[key] || 0;
-        // ป้องกันไม่ให้ยอดรวมติดลบเด็ดขาด
         const newTotal = Math.max(0, currentTotal + inputVal);
-        const actualDelta = newTotal - currentTotal; // คำนวณส่วนต่างที่เกิดขึ้นจริง
+        const actualDelta = newTotal - currentTotal; 
 
-        // ถ้ามีการเปลี่ยนแปลงยอดจริงๆ ถึงจะบันทึกประวัติ (กันพนักงานกดลบเล่นตอนยอดเป็น 0)
         if (actualDelta !== 0) {
           newTotals[key] = newTotal;
           changes.push({ label, delta: actualDelta });
@@ -175,7 +173,6 @@ export default function App() {
     } catch(e) { alert("ส่งไม่สำเร็จ"); } finally { setSending(false); }
   };
 
-  // ถอด Math.max(0) ออก เพื่อให้ input สามารถพิมพ์เลขติดลบ หรือกดปุ่มลบลงไปได้
   const step = (key, delta) => {
     setIphoneInputs(prev => ({
       ...prev,
@@ -185,7 +182,6 @@ export default function App() {
 
   const handleInputChange = (key, val) => {
     const num = parseInt(val) || 0;
-    // ถ้าระหว่างพิมพ์ ลบเครื่องหมายลบออก แล้วมันเว้นว่าง ให้ใส่เป็นค่าปัจจุบันไปก่อน
     setIphoneInputs(prev => ({ ...prev, [key]: isNaN(parseInt(val)) && val !== "-" ? 0 : val }));
   };
 
@@ -338,7 +334,6 @@ export default function App() {
         {logs.length === 0
           ? <div style={{ color:"#94a3b8", fontSize:13, textAlign:"center", padding:"10px 0" }}>ยังไม่มีประวัติ</div>
           : logs.map((log, i) => {
-            // เช็คว่าในรอบที่อัปเดตนี้ มีการหักยอด หรือ เพิ่มยอด เป็นหลัก
             const isSubtract = log.changes?.some(c => c.delta < 0);
             return (
               <div key={i} className="log-item" style={{ borderLeft: `3px solid ${isSubtract ? "#ef4444" : "#22c55e"}` }}>
