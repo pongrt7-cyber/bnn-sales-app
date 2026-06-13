@@ -196,7 +196,6 @@ export default function App() {
     setIphoneInputs(prev => ({ ...prev, [key]: isNaN(parseInt(val)) && val !== "-" ? 0 : val }));
   };
 
-  // --- Camera & Cropping OCR Logic ---
   const startCamera = async () => {
     setIsCameraOpen(true);
     setOcrData({ id: "", fname: "", lname: "", address: "", rawText: "" });
@@ -220,6 +219,7 @@ export default function App() {
     setIsCameraOpen(false);
   };
 
+  // ระบบ Auto-Zoom ประมวลผลภาพครอบแบบดิจิทัลเพื่อแก้ปัญหาเลนส์มาโคร iPhone 13
   const processCroppedImage = async (imageSource) => {
     setOcrLoading(true);
     setOcrProgress(0);
@@ -230,26 +230,19 @@ export default function App() {
       img.src = imageSource;
       await new Promise(r => img.onload = r);
 
-      // สร้าง Canvas แม่แบบ เพื่อจัดขนาดให้เป็นมาตรฐาน 856x540 เสมอ
       const cardCanvas = document.createElement("canvas");
       cardCanvas.width = 856;
       cardCanvas.height = 540;
       const ctxCard = cardCanvas.getContext("2d");
 
-      // ครอปเฉพาะส่วนตรงกลางของรูป (เผื่อถ่ายภาพมาติดพื้นหลังเยอะ)
-      const iw = img.width;
-      const ih = img.height;
-      let cw = iw;
-      let ch = cw / 1.585;
-      if (ch > ih) {
-         ch = ih;
-         cw = ch * 1.585;
-      }
-      const cx = (iw - cw) / 2;
-      const cy = (ih - ch) / 2;
+      // ตัดขอบภาพส่วนกลางออกมา 70% เพื่อสร้างระยะซูมดิจิทัล ดักภาพเบลอจากการยื่นใกล้เกินไป
+      const cw = img.width * 0.70;
+      const ch = img.height * 0.70;
+      const cx = (img.width - cw) / 2;
+      const cy = (img.height - ch) / 2;
+      
       ctxCard.drawImage(img, cx, cy, cw, ch, 0, 0, 856, 540);
 
-      // สร้าง Canvas ใหม่สำหรับต่อภาพ 3 ชิ้นส่วน
       const compCanvas = document.createElement("canvas");
       compCanvas.width = 500;
       compCanvas.height = 340; 
@@ -257,11 +250,8 @@ export default function App() {
       ctxComp.fillStyle = "white";
       ctxComp.fillRect(0, 0, 500, 340);
 
-      // 1. ครอปเลขบัตร (ดึงมุมขวาบน)
       ctxComp.drawImage(cardCanvas, 420, 30, 410, 80, 0, 0, 410, 80);
-      // 2. ครอปชื่อ-สกุล (ดึงช่วงกลางบน)
       ctxComp.drawImage(cardCanvas, 200, 130, 500, 80, 0, 80, 500, 80);
-      // 3. ครอปที่อยู่ (ดึงช่วงซ้ายล่าง)
       ctxComp.drawImage(cardCanvas, 60, 290, 500, 180, 0, 160, 500, 180);
 
       const compositeDataUrl = compCanvas.toDataURL("image/jpeg");
@@ -306,7 +296,7 @@ export default function App() {
 
       setOcrData(parsed);
     } catch (err) {
-      alert("อ่านข้อความไม่สำเร็จ กรุณาลองถ่ายรูปใหม่อีกครั้งครับ");
+      alert("อ่านข้อความไม่สำเร็จ กรุณาลองถ่ายรูปใหมี่อีกครั้งครับ");
     } finally {
       setOcrLoading(false);
     }
@@ -366,12 +356,16 @@ export default function App() {
         .note-del:hover{color:#ef4444;}
         .textarea-note{background:rgba(255,255,255,0.55);border:1px solid rgba(200,210,240,0.8);border-radius:12px;color:#1e293b;font-size:14px;padding:10px 12px;resize:vertical;width:100%;min-height:52px;font-family:'Sarabun',sans-serif;}
         .textarea-note::placeholder{color:#94a3b8;}
+        .flash{animation:flashAnim 0.5s ease;}
+        @keyframes flashAnim{0%,100%{opacity:1}50%{opacity:0.5}}
         .section-header{padding:10px 14px;background:rgba(99,102,241,0.08);border-radius:12px;margin-bottom:4px;}
         .field-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-radius:10px;transition:background 0.1s;}
         .field-row:hover{background:rgba(255,255,255,0.5);}
         .field-label{font-size:14px;font-weight:600;color:#334155;min-width:90px;}
         .section-divider{border:none;border-top:1px solid rgba(200,210,240,0.5);margin:8px 0;}
         .label-text{font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;}
+        .save-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;margin-left:6px;vertical-align:middle;animation:pulse 1s infinite;}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
         .log-item{background:rgba(255,255,255,0.5);border:1px solid rgba(200,210,240,0.7);border-radius:12px;padding:10px 14px;margin-bottom:8px;}
         .log-time{font-size:12px;color:#6366f1;font-weight:700;margin-bottom:4px;}
         .log-change{font-size:13px;color:#334155;line-height:1.6;}
@@ -382,14 +376,17 @@ export default function App() {
         .ocr-copy-btn{background:#e0e7ff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:600;font-size:13px;min-width:65px;}
         .ocr-copy-btn:hover{background:#c7d2fe;}
         
-        .camera-container{position:relative;width:100%;max-width:400px;margin:0 auto 16px;border-radius:12px;overflow:hidden;background:#000;}
-        .camera-video{width:100%;display:block;object-fit:cover;aspect-ratio:1.585/1;}
-        .camera-overlay{position:absolute;top:0;left:0;right:0;bottom:0;box-shadow:0 0 0 9999px rgba(0,0,0,0.6);border:2px solid #22c55e;width:100%;height:100%;margin:auto;pointer-events:none;}
+        /* Camera Container & Guide Box CSS */
+        .camera-container{position:relative;width:100%;max-width:400px;margin:0 auto 16px;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:1.585/1;}
+        .camera-video{width:100%;height:100%;display:block;object-fit:cover;}
+        /* ปรับสัดส่วนกรอบเล็งให้เล็กลงเหลือ 70% บังคับถอยระยะกล้องออกห่างเพื่อป้องกันภาพเบลอ */
+        .camera-guide{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:70%;aspect-ratio:1.585/1;border:3px solid #22c55e;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.6);pointer-events:none;}
         .camera-btn-bar{display:flex;justify-content:center;gap:12px;margin-top:12px;}
         .capture-btn{background:#22c55e;color:#fff;border:none;padding:10px 24px;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;}
         .cancel-btn{background:rgba(255,255,255,0.3);color:#1e293b;border:1px solid #94a3b8;padding:10px 24px;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;}
       `}</style>
 
+      {/* HEADER */}
       <div style={{ width:"100%", maxWidth:460, display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
         <div style={{ width: 85 }}></div> 
         <div style={{ textAlign:"center", flex:1 }}>
@@ -411,6 +408,7 @@ export default function App() {
         </button>
       </div>
 
+      {/* ======== PAGE: SCANNER ======== */}
       {page === "scanner" && (
         <div className="glass" style={{ width:"100%", maxWidth:460, padding:"18px 12px" }}>
           
@@ -439,11 +437,11 @@ export default function App() {
           {isCameraOpen && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize:12, color:"#ef4444", textAlign:"center", marginBottom:8, fontWeight:600 }}>
-                กรุณาจัดวางบัตรให้เต็มและพอดีกับกรอบมากที่สุด
+                ถอยกล้องห่างออกไปเล็กน้อยให้บัตรพอดีกรอบสีเขียวเพื่อให้ภาพโฟกัสชัดเจน
               </div>
               <div className="camera-container">
                 <video ref={videoRef} className="camera-video" autoPlay playsInline></video>
-                <div className="camera-overlay"></div>
+                <div className="camera-guide"></div>
               </div>
               <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
               
@@ -502,6 +500,7 @@ export default function App() {
         </div>
       )}
 
+      {/* ======== PAGE: MAIN ======== */}
       {page === "main" && (
         <>
           <div className="glass" style={{ width:"100%", maxWidth:460, padding:"18px 12px", marginBottom:16 }}>
@@ -570,7 +569,7 @@ export default function App() {
                 {notes.map(n => (
                   <div key={n.id} className="note-chip">
                     <span style={{ flex:1 }}>{n.text}</span>
-                    <button className="note-del" onClick={() => handleDeleteNote(n.id)}>ลบ</button>
+                    <button className="note-del" onClick={() => handleDeleteNote(n.id)}>X</button>
                   </div>
                 ))}
               </div>
