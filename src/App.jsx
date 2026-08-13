@@ -204,20 +204,24 @@ export default function App() {
 
   const generateTeamReport = () => {
     const { tin, tapp, pcSum } = getTeamTotals();
-    let s = `ID ร้าน :790\nชื่อร้าน : ${config.branchName}\n`;
-    s += `จำนวนคนมาทำงาน : ${teamMeta.staff}\nPIA : ${teamMeta.pia}\nSuper sale: ${teamMeta.ss}\nPart-time: ${teamMeta.pt}\nPC : ${teamMeta.pc}\nPc ทรู : ${teamMeta.pctrue}\n\n`;
-    config.teamMembers.forEach(m => {
-      if (m.category === "PIA") {
-        s += `${m.name}\n`;
-        s += `App in iPhone ${teamData[`${m.id}_i_in`] || 0}: App in =${teamData[`${m.id}_i_in`] || 0} / Approve =${teamData[`${m.id}_i_app`] || 0}\n`;
-        s += `App in SMP ${teamData[`${m.id}_s_in`] || 0} : App in ${teamData[`${m.id}_s_in`] || 0}/Approve ${teamData[`${m.id}_s_app`] || 0}\n\n`;
-      }
+    // Assuming branchName contains " (790)" to extract ID, or hardcoding 790 based on user input
+    let s = `ID ร้าน :790\nชื่อร้าน : ${config.branchName.replace(" (790)", "")}\n`;
+    s += `จำนวนคนมาทำงาน : ${teamMeta.staff}\nPIA : ${teamMeta.pia}\nSuper sale:${teamMeta.ss}\nPart-time:${teamMeta.pt}\nPC : ${teamMeta.pc}\nPc ทรู :${teamMeta.pctrue}\n\n`;
+    
+    config.teamMembers.filter(m => m.category === "PIA").forEach((m, idx) => {
+      s += `${idx + 1}.${m.name} \n`;
+      s += `💚App in iPhone ${teamData[`${m.id}_i_in`] || 0}: App in =${teamData[`${m.id}_i_in`] || 0} / Approve =${teamData[`${m.id}_i_app`] || 0}\n`;
+      s += `🧡App in SMP ${teamData[`${m.id}_s_in`] || 0} : App in ${teamData[`${m.id}_s_in`] || 0}/Approve ${teamData[`${m.id}_s_app`] || 0}\n`;
     });
-    s += `…….\nPC Brand App in ${pcSum}\n\n`;
-    config.teamMembers.forEach(m => {
-      if (m.category !== "PIA") s += `${m.name}\nApp in = ${teamData[`${m.id}_in`] || 0} / Approve =${teamData[`${m.id}_app`] || 0}\n\n`;
+    
+    s += `…….\n📊PC Brand App in ${pcSum}\n`;
+    
+    config.teamMembers.filter(m => m.category !== "PIA").forEach((m, idx) => {
+      s += `${idx + 1}. ${m.name} ${m.category}\n`;
+      s += `App in = ${teamData[`${m.id}_in`] || 0} /Approve =${teamData[`${m.id}_app`] || 0}\n`;
     });
-    s += `Total App in Target Today = ${teamMeta.target}\nTotal App in Today = ${tin}\nTotal Approve Today = ${tapp}`;
+    
+    s += `🔺Total App in Target Today =  ${teamMeta.target}\n▪️Total App in Today = ${tin}\n▪️Total Approve Today = ${tapp}`;
     return s;
   };
 
