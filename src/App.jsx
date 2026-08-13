@@ -22,6 +22,15 @@ const ALL_FIELDS = [...IPHONE_FIELDS, ...TRADE_FIELDS];
 const ALL_FIELD_KEYS = ALL_FIELDS.map(f => f.key);
 const EMPTY_TOTALS = () => Object.fromEntries(ALL_FIELD_KEYS.map(k => [k, 0]));
 
+// ใช้ฟอร์แมตมาตรฐาน ค.ศ. YYYY-MM-DD เพื่อป้องกันวันที่เพี้ยน
+function getTodayISO() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function getTodayTH() {
   const now = new Date();
   const d = String(now.getDate()).padStart(2,"0");
@@ -37,7 +46,6 @@ function getTimeTH() {
   return `${h}:${m}:${s}`;
 }
 
-// เอา BNN และ วันที่ออกจากข้อความส่งไลน์ตามที่เคยสั่งไว้ครับ
 function formatSummary(totals, notes) {
   const t = totals;
   const lines = [
@@ -72,10 +80,12 @@ export default function App() {
     let loaded = 0;
     const check = () => { loaded++; if (loaded >= 2) setLoading(false); };
 
+    // ดึงข้อมูลยอดขาย
     const unsubSales = onValue(ref(db, DB_SALES), snap => {
       const d = snap.val();
       if (d) {
-        if (d.date && d.date !== getTodayTH()) {
+        // เช็คว่าข้ามวันจริงหรือไม่ โดยใช้รหัส ISO วันที่มาตรฐาน
+        if (d.dateISO && d.dateISO !== getTodayISO()) {
           remove(ref(db, DB_SALES));
           remove(ref(db, DB_LOGS));
           setTotals(null); setNotes([]); setLogs([]);
@@ -87,16 +97,25 @@ export default function App() {
         setTotals(null); setNotes([]);
       }
       check();
-    }, () => check());
+    }, (err) => {
+      console.error("Firebase Sales Error:", err);
+      check();
+    });
 
+    // ดึงข้อมูลประวัติ (Logs)
     const unsubLogs = onValue(ref(db, DB_LOGS), snap => {
       const d = snap.val();
       if (d) {
-        const arr = Object.values(d).sort((a,b) => b.ts - a.ts);
+        const arr = Object.values(d).sort((a, b) => b.ts - a.ts);
         setLogs(arr);
-      } else setLogs([]);
+      } else {
+        setLogs([]);
+      }
       check();
-    }, () => check());
+    }, (err) => {
+      console.error("Firebase Logs Error:", err);
+      check();
+    });
 
     return () => { unsubSales(); unsubLogs(); };
   }, []);
@@ -104,12 +123,29 @@ export default function App() {
   const saveAll = async (newTotals, newNotes) => {
     setSaving(true);
     try {
-      await set(ref(db, DB_SALES), { date: getTodayTH(), totals: newTotals, notes: newNotes });
-    } catch(e) { console.error(e); } finally { setSaving(false); }
+      // เซฟทั้ง dateISO (เอาไว้เช็คข้ามวัน) และ dateTH (เอาไว้โชว์)
+      await set(ref(db, DB_SALES), { 
+        dateISO: getTodayISO(), 
+        date: getTodayTH(), 
+        totals: newTotals, 
+        notes: newNotes 
+      });
+    } catch(e) { 
+      console.error("Save Error:", e); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const addLog = async (changes, note) => {
-    const entry = { ts: Date.now(), time: getTimeTH(), date: getTodayTH(), changes, note: note || "" };
+    const entry = { 
+      ts: Date.now(), 
+      time: getTimeTH(), 
+      dateISO: getTodayISO(), 
+      date: getTodayTH(), 
+      changes, 
+      note: note || "" 
+    };
     await push(ref(db, DB_LOGS), entry);
   };
 
@@ -122,7 +158,6 @@ export default function App() {
       const inputVal = parseInt(iphoneInputs[key]) || 0;
       if (inputVal !== 0) {
         const currentTotal = base[key] || 0;
-        // ป้องกันบิลติดลบ
         const newTotal = Math.max(0, currentTotal + inputVal);
         const actualDelta = newTotal - currentTotal; 
 
