@@ -19,13 +19,13 @@ const DEFAULT_CONFIG = {
     { id: "buy", label: "Buy" },
   ],
   teamMembers: [
-    { id: "p1", name: "แป้ง", position: "PIA" },
-    { id: "p2", name: "แอม", position: "PIA" },
+    { id: "p1", name: "แป้ง", position: "PIA (พนักงานร้าน)" },
+    { id: "p2", name: "แอม", position: "PIA (พนักงานร้าน)" },
     { id: "f", name: "ฝ้าย", position: "PC Brand" },
     { id: "i", name: "ไอซ์", position: "PC Brand" },
     { id: "p", name: "ปัน", position: "PC Brand" },
     { id: "n", name: "นิด", position: "PC True" },
-    { id: "k", name: "กิ้ว", position: "SP" },
+    { id: "k", name: "กิ้ว", position: "PIA (พนักงานร้าน)" },
     { id: "po", name: "พง", position: "Part-time" },
     { id: "b", name: "บาส", position: "Part-time" },
   ],
@@ -70,8 +70,6 @@ export default function App() {
   // ---- Admin ----
   const [adminBranch, setAdminBranch] = useState("");
   const [newFieldName, setNewFieldName] = useState("");
-  const [newTeamName, setNewTeamName] = useState("");
-  const [newTeamIsPIA, setNewTeamIsPIA] = useState(false);
 
   useEffect(() => {
     let loaded = 0;
@@ -184,7 +182,7 @@ export default function App() {
   const getTeamTotals = () => {
     let tin = 0, tapp = 0, pcSum = 0;
     config.teamMembers.forEach(m => {
-      if (m.isPIA) {
+      if (m.position === "PIA (พนักงานร้าน)") {
         tin += (teamData[`${m.id}_i_in`] || 0) + (teamData[`${m.id}_s_in`] || 0);
         tapp += (teamData[`${m.id}_i_app`] || 0) + (teamData[`${m.id}_s_app`] || 0);
       } else {
@@ -198,19 +196,39 @@ export default function App() {
 
   const generateTeamReport = () => {
     const { tin, tapp, pcSum } = getTeamTotals();
-    let s = `ID ร้าน :790\nชื่อร้าน : ${config.branchName}\n`;
-    s += `จำนวนคนมาทำงาน : ${teamMeta.staff}\nPIA : ${teamMeta.pia}\nSuper sale: ${teamMeta.ss}\nPart-time: ${teamMeta.pt}\nPC : ${teamMeta.pc}\nPc ทรู : ${teamMeta.pctrue}\n\n`;
+    
+    // Auto-calculate staff count
+    let activeStaffCount = 0;
     config.teamMembers.forEach(m => {
-      if (m.isPIA) {
-        s += `${m.name}\n`;
+        let hasActivity = false;
+        if (m.position === "PIA (พนักงานร้าน)") {
+            if ((teamData[`${m.id}_i_in`] || 0) > 0 || (teamData[`${m.id}_i_app`] || 0) > 0 || (teamData[`${m.id}_s_in`] || 0) > 0 || (teamData[`${m.id}_s_app`] || 0) > 0) hasActivity = true;
+        } else {
+            if ((teamData[`${m.id}_in`] || 0) > 0 || (teamData[`${m.id}_app`] || 0) > 0) hasActivity = true;
+        }
+        if (hasActivity) activeStaffCount++;
+    });
+
+    let s = `ID ร้าน :790\nชื่อร้าน : ${config.branchName}\n`;
+    s += `จำนวนคนมาทำงาน : ${activeStaffCount}\n\n`;
+    
+    // Group PIA/SP
+    const pias = config.teamMembers.filter(m => m.position === "PIA (พนักงานร้าน)");
+    s += `PIA (พนักงานร้าน)\n`;
+    pias.forEach((m, idx) => {
+        s += `${idx + 1}. ${m.name}\n`;
         s += `App in iPhone ${teamData[`${m.id}_i_in`] || 0}: App in =${teamData[`${m.id}_i_in`] || 0} / Approve =${teamData[`${m.id}_i_app`] || 0}\n`;
         s += `App in SMP ${teamData[`${m.id}_s_in`] || 0} : App in ${teamData[`${m.id}_s_in`] || 0}/Approve ${teamData[`${m.id}_s_app`] || 0}\n\n`;
-      }
     });
+
     s += `…….\nPC Brand App in ${pcSum}\n\n`;
-    config.teamMembers.forEach(m => {
-      if (!m.isPIA) s += `${m.name}\nApp in = ${teamData[`${m.id}_in`] || 0} / Approve =${teamData[`${m.id}_app`] || 0}\n\n`;
+    
+    // Group PC
+    const pcs = config.teamMembers.filter(m => m.position !== "PIA (พนักงานร้าน)");
+    pcs.forEach((m, idx) => {
+        s += `${idx + 1}. ${m.name}\nApp in = ${teamData[`${m.id}_in`] || 0} / Approve =${teamData[`${m.id}_app`] || 0}\n\n`;
     });
+    
     s += `Total App in Target Today = ${teamMeta.target}\nTotal App in Today = ${tin}\nTotal Approve Today = ${tapp}`;
     return s;
   };
@@ -247,11 +265,6 @@ export default function App() {
   const adminRemoveField = (id) => {
     if (!window.confirm("ยืนยันการลบหัวข้อนี้?")) return;
     saveConfigToDB({ ...config, salesFields: config.salesFields.filter(f => f.id !== id) });
-  };
-  const adminAddTeam = () => {
-    if (!newTeamName.trim()) return;
-    saveConfigToDB({ ...config, teamMembers: [...config.teamMembers, { id: `tm_${Date.now()}`, name: newTeamName.trim(), isPIA: newTeamIsPIA }] });
-    setNewTeamName("");
   };
   const adminRemoveTeam = (id) => {
     if (!window.confirm("ยืนยันการลบพนักงานคนนี้?")) return;
@@ -437,8 +450,8 @@ export default function App() {
           </div>
 
           <div className="glass">
-            <div className="section-header"><span style={{ fontSize: 13, fontWeight: 700, color: "#4f46e5" }}>PIA</span></div>
-            {config.teamMembers.filter(m => m.isPIA).map(m => (
+            <div className="section-header"><span style={{ fontSize: 13, fontWeight: 700, color: "#4f46e5" }}>PIA (พนักงานร้าน)</span></div>
+            {config.teamMembers.filter(m => m.position === "PIA (พนักงานร้าน)").map(m => (
               <div key={m.id} className="person-card">
                 <div className="person-title">{m.name}</div>
                 <div className="field-row" style={{ marginBottom: 6 }}>
@@ -474,7 +487,7 @@ export default function App() {
               <span style={{ fontSize: 13, fontWeight: 700, color: "#4f46e5" }}>📊 PC Brand</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: "#6366f1" }}>App in {teamTotals.pcSum}</span>
             </div>
-            {config.teamMembers.filter(m => !m.isPIA).map(m => (
+            {config.teamMembers.filter(m => m.position !== "PIA (พนักงานร้าน)").map(m => (
               <div key={m.id} className="person-card">
                 <div className="person-title">{m.name}</div>
                 <div className="field-row">

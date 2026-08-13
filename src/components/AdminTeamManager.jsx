@@ -1,16 +1,35 @@
 import { useState } from "react";
 
-const POSITIONS = ["PIA", "PC Brand", "PC True", "SP", "Part-time"];
+const POSITIONS = ["PIA (พนักงานร้าน)", "PC Brand", "PC True", "Part-time"];
 
 export default function AdminTeamManager({ teamMembers, onSave }) {
   const [pendingTeamMembers, setPendingTeamMembers] = useState(
-    teamMembers.map((m) => ({ ...m, position: m.position || "PC Brand" }))
+    teamMembers.map((m) => {
+      let pos = m.position || "PC Brand";
+      // Merge SP into PIA
+      if (pos === "SP") pos = POSITIONS[0];
+      if (pos === "PIA") pos = POSITIONS[0];
+      return { ...m, position: pos };
+    })
   );
+  const [newName, setNewName] = useState("");
+  const [newPos, setNewPos] = useState(POSITIONS[0]);
 
   const updateMember = (id, field, value) => {
     setPendingTeamMembers((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
     );
+  };
+
+  const deleteMember = (id) => {
+    if (!window.confirm("ยืนยันการลบพนักงานคนนี้?")) return;
+    setPendingTeamMembers(prev => prev.filter(m => m.id !== id));
+  };
+
+  const addMember = () => {
+    if (!newName.trim()) return;
+    setPendingTeamMembers(prev => [...prev, { id: `tm_${Date.now()}`, name: newName.trim(), position: newPos }]);
+    setNewName("");
   };
 
   const move = (index, direction) => {
@@ -69,11 +88,34 @@ export default function AdminTeamManager({ teamMembers, onSave }) {
                 </select>
                 <button className="step-btn" onClick={() => move(index, -1)}>↑</button>
                 <button className="step-btn" onClick={() => move(index, 1)}>↓</button>
+                <button className="del-btn" style={{ height: "30px" }} onClick={() => deleteMember(m.id)}>ลบ</button>
               </div>
             );
           })}
         </div>
       ))}
+      
+      <div className="admin-row" style={{ marginTop: "20px", flexDirection: "column", gap: "10px", padding: "15px" }}>
+        <input
+          className="add-input"
+          style={{ marginBottom: 0 }}
+          placeholder="ชื่อพนักงานใหม่..."
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+        />
+        <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+          <select
+            className="add-input"
+            style={{ marginBottom: 0, flex: 1 }}
+            value={newPos}
+            onChange={(e) => setNewPos(e.target.value)}
+          >
+            {POSITIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <button className="add-btn" style={{ padding: "0 20px" }} onClick={addMember}>เพิ่ม</button>
+        </div>
+      </div>
+
       <button className="update-btn" style={{ marginTop: "20px" }} onClick={() => onSave(pendingTeamMembers)}>
         บันทึกการเปลี่ยนแปลง
       </button>
