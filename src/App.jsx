@@ -466,18 +466,21 @@ export default function App() {
             ))}
           </div>
 
-          {["PIA", "PC", "PT", "SP"].map(cat => (
+          {["PIA", "PC", "PT", "SP", "OTHER"].map(cat => {
+            const filteredMembers = config.teamMembers.filter(m => (cat === "OTHER" ? !["PIA", "PC", "PT", "SP"].includes(m.category) : m.category === cat));
+            if (filteredMembers.length === 0) return null;
+            return (
             <div key={cat} className="glass">
               <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#4f46e5" }}>{cat}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#4f46e5" }}>{cat === "OTHER" ? "อื่นๆ" : cat}</span>
               </div>
-              {config.teamMembers.filter(m => m.category === cat).map((m, idx, arr) => (
+              {filteredMembers.map((m, idx, arr) => (
                 <div key={m.id} className="person-card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                     <div className="person-title">{idx + 1}. {m.name}</div>
                   </div>
                   {/* ... rest of the rendering ... */}
-                  {cat === "PIA" ? (
+                  {m.category === "PIA" ? (
                     <>
                       <div className="field-row" style={{ marginBottom: 6 }}>
                         <span className="tag tag-green">iPhone</span>
@@ -521,7 +524,8 @@ export default function App() {
                 </div>
               ))}
             </div>
-          ))}
+            );
+          })}
 
           <div className="glass" style={{ background: "rgba(236,253,245,0.7)", border: "1px solid rgba(167,243,208,0.9)" }}>
             <div className="label-text" style={{ color: "#047857", marginBottom: 12 }}>สรุปยอดรวมทีม</div>
