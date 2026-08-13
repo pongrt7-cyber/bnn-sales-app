@@ -462,10 +462,6 @@ export default function App() {
                 <div key={m.id} className="person-card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                     <div className="person-title">{idx + 1}. {m.name}</div>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button className="step-btn" style={{ width: 24, height: 24, fontSize: 12 }} onClick={() => reorderTeamMember(m.id, "up")}>▲</button>
-                      <button className="step-btn" style={{ width: 24, height: 24, fontSize: 12 }} onClick={() => reorderTeamMember(m.id, "down")}>▼</button>
-                    </div>
                   </div>
                   {/* ... rest of the rendering ... */}
                   {cat === "PIA" ? (
@@ -576,10 +572,13 @@ export default function App() {
             {config.teamMembers.map(m => (
               <div key={m.id} className="admin-row">
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name}</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>แผนก: {m.isPIA ? "PIA" : "PC / Part-time"}</div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name} ({m.category})</div>
                 </div>
-                <button className="del-btn" onClick={() => adminRemoveTeam(m.id)}>ลบ</button>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <button className="step-btn" style={{ width: 24, height: 24, fontSize: 12 }} onClick={() => reorderTeamMember(m.id, "up")}>▲</button>
+                  <button className="step-btn" style={{ width: 24, height: 24, fontSize: 12 }} onClick={() => reorderTeamMember(m.id, "down")}>▼</button>
+                  <button className="del-btn" onClick={() => adminRemoveTeam(m.id)}>ลบ</button>
+                </div>
               </div>
             ))}
             <div style={{ marginTop: 12, padding: "12px", background: "rgba(255,255,255,0.5)", borderRadius: "8px" }}>
