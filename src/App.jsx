@@ -77,8 +77,15 @@ export default function App() {
     const check = () => { loaded++; if (loaded >= 3) setLoading(false); };
 
     const unsubConfig = onValue(ref(db, DB_CONFIG), snap => {
-      const d = snap.val();
-      if (d) { setConfig(d); setAdminBranch(d.branchName); }
+      let d = snap.val();
+      if (d) {
+        // Data Migration: add 'category' if missing
+        if (d.teamMembers && d.teamMembers.some(m => !m.category)) {
+          d.teamMembers = d.teamMembers.map(m => m.category ? m : { ...m, category: "PC" });
+          set(ref(db, DB_CONFIG), d); // Update DB with fixed data
+        }
+        setConfig(d); setAdminBranch(d.branchName);
+      }
       else setAdminBranch(DEFAULT_CONFIG.branchName);
       check();
     }, () => check());
