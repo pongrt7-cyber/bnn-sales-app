@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { db } from "./firebase";
 import { ref, onValue, set, remove, push } from "firebase/database";
+import AdminTeamManager from "./components/AdminTeamManager";
 
 const DB_SALES = "sales_summary";
 const DB_LOGS = "activity_logs";
@@ -18,15 +19,15 @@ const DEFAULT_CONFIG = {
     { id: "buy", label: "Buy" },
   ],
   teamMembers: [
-    { id: "p1", name: "1. PIA : แป้ง", isPIA: true },
-    { id: "p2", name: "1. PIA : แอม", isPIA: true },
-    { id: "f", name: "1. ฝ้าย PC / Brand: oppo", isPIA: false },
-    { id: "i", name: "2. ไอซ์ PC / Brand: Samsung", isPIA: false },
-    { id: "p", name: "3. ปัน pc/ Brand: Xiaomi", isPIA: false },
-    { id: "n", name: "4. นิด pc ทรู เบอร์", isPIA: false },
-    { id: "k", name: "5. กิ้ว SP", isPIA: false },
-    { id: "po", name: "5. part-time: พง", isPIA: false },
-    { id: "b", name: "6. part-time: บาส", isPIA: false },
+    { id: "p1", name: "แป้ง", position: "PIA" },
+    { id: "p2", name: "แอม", position: "PIA" },
+    { id: "f", name: "ฝ้าย", position: "PC Brand" },
+    { id: "i", name: "ไอซ์", position: "PC Brand" },
+    { id: "p", name: "ปัน", position: "PC Brand" },
+    { id: "n", name: "นิด", position: "PC True" },
+    { id: "k", name: "กิ้ว", position: "SP" },
+    { id: "po", name: "พง", position: "Part-time" },
+    { id: "b", name: "บาส", position: "Part-time" },
   ],
 };
 
@@ -551,26 +552,10 @@ export default function App() {
 
           <div className="glass">
             <h3 style={{ margin: "0 0 12px 0", color: "#3730a3", fontSize: 16 }}>👥 3. จัดการรายชื่อพนักงาน</h3>
-            {config.teamMembers.map(m => (
-              <div key={m.id} className="admin-row">
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name}</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>แผนก: {m.isPIA ? "PIA" : "PC / Part-time"}</div>
-                </div>
-                <button className="del-btn" onClick={() => adminRemoveTeam(m.id)}>ลบ</button>
-              </div>
-            ))}
-            <div style={{ marginTop: 12, padding: "12px", background: "rgba(255,255,255,0.5)", borderRadius: "8px" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>เพิ่มพนักงานใหม่</div>
-              <input className="add-input" placeholder="พิมพ์ชื่อพนักงาน..." value={newTeamName} onChange={e => setNewTeamName(e.target.value)} />
-              <div style={{ display: "flex", gap: 8 }}>
-                <select className="add-input" style={{ marginBottom: 0 }} value={newTeamIsPIA} onChange={e => setNewTeamIsPIA(e.target.value === "true")}>
-                  <option value="false">PC / Part-time / SP</option>
-                  <option value="true">PIA</option>
-                </select>
-                <button className="add-btn" onClick={adminAddTeam}>เพิ่มคน</button>
-              </div>
-            </div>
+            <AdminTeamManager 
+                teamMembers={config.teamMembers} 
+                onSave={(newTeamMembers) => saveConfigToDB({...config, teamMembers: newTeamMembers})}
+            />
           </div>
         </div>
       )}
