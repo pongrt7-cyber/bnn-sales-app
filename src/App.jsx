@@ -254,6 +254,19 @@ export default function App() {
     saveConfigToDB({ ...config, teamMembers: [...config.teamMembers, { id: `tm_${Date.now()}`, name: newTeamName.trim(), category: newTeamCategory }] });
     setNewTeamName("");
   };
+  const adminRemoveTeam = (id) => {
+    if (!window.confirm("ยืนยันการลบพนักงานคนนี้?")) return;
+    saveConfigToDB({ ...config, teamMembers: config.teamMembers.filter(m => m.id !== id) });
+  };
+  
+  const adminEditTeamName = (id) => {
+    const member = config.teamMembers.find(m => m.id === id);
+    const newName = window.prompt("แก้ไขชื่อ:", member.name);
+    if (newName !== null && newName.trim()) {
+      saveConfigToDB({ ...config, teamMembers: config.teamMembers.map(m => m.id === id ? { ...m, name: newName.trim() } : m) });
+    }
+  };
+
   const reorderTeamMember = async (id, direction) => {
     const members = [...config.teamMembers];
     const index = members.findIndex(m => m.id === id);
@@ -570,11 +583,12 @@ export default function App() {
           <div className="glass">
             <h3 style={{ margin: "0 0 12px 0", color: "#3730a3", fontSize: 16 }}>👥 3. จัดการรายชื่อพนักงาน</h3>
             {config.teamMembers.map(m => (
-              <div key={m.id} className="admin-row">
-                <div>
+              <div key={m.id} className="admin-row" style={{ cursor: "pointer" }} onClick={() => adminEditTeamName(m.id)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: "#cbd5e1" }}>☰</span>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name} ({m.category})</div>
                 </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
                   <button className="step-btn" style={{ width: 24, height: 24, fontSize: 12 }} onClick={() => reorderTeamMember(m.id, "up")}>▲</button>
                   <button className="step-btn" style={{ width: 24, height: 24, fontSize: 12 }} onClick={() => reorderTeamMember(m.id, "down")}>▼</button>
                   <button className="del-btn" onClick={() => adminRemoveTeam(m.id)}>ลบ</button>
