@@ -18,15 +18,15 @@ const DEFAULT_CONFIG = {
     { id: "buy", label: "Buy" },
   ],
   teamMembers: [
-    { id: "p1", name: "1. PIA : แป้ง", isPIA: true },
-    { id: "p2", name: "1. PIA : แอม", isPIA: true },
-    { id: "f", name: "1. ฝ้าย PC / Brand: oppo", isPIA: false },
-    { id: "i", name: "2. ไอซ์ PC / Brand: Samsung", isPIA: false },
-    { id: "p", name: "3. ปัน pc/ Brand: Xiaomi", isPIA: false },
-    { id: "n", name: "4. นิด pc ทรู เบอร์", isPIA: false },
-    { id: "k", name: "5. กิ้ว SP", isPIA: false },
-    { id: "po", name: "5. part-time: พง", isPIA: false },
-    { id: "b", name: "6. part-time: บาส", isPIA: false },
+    { id: "p1", name: "แป้ง", category: "PIA" },
+    { id: "p2", name: "แอม", category: "PIA" },
+    { id: "f", name: "ฝ้าย", category: "PC" },
+    { id: "i", name: "ไอซ์", category: "PC" },
+    { id: "p", name: "ปัน", category: "PC" },
+    { id: "n", name: "นิด", category: "PC" },
+    { id: "k", name: "กิ้ว", category: "SP" },
+    { id: "po", name: "พง", category: "PT" },
+    { id: "b", name: "บาส", category: "PT" },
   ],
 };
 
@@ -183,7 +183,7 @@ export default function App() {
   const getTeamTotals = () => {
     let tin = 0, tapp = 0, pcSum = 0;
     config.teamMembers.forEach(m => {
-      if (m.isPIA) {
+      if (m.category === "PIA") {
         tin += (teamData[`${m.id}_i_in`] || 0) + (teamData[`${m.id}_s_in`] || 0);
         tapp += (teamData[`${m.id}_i_app`] || 0) + (teamData[`${m.id}_s_app`] || 0);
       } else {
@@ -200,7 +200,7 @@ export default function App() {
     let s = `ID ร้าน :790\nชื่อร้าน : ${config.branchName}\n`;
     s += `จำนวนคนมาทำงาน : ${teamMeta.staff}\nPIA : ${teamMeta.pia}\nSuper sale: ${teamMeta.ss}\nPart-time: ${teamMeta.pt}\nPC : ${teamMeta.pc}\nPc ทรู : ${teamMeta.pctrue}\n\n`;
     config.teamMembers.forEach(m => {
-      if (m.isPIA) {
+      if (m.category === "PIA") {
         s += `${m.name}\n`;
         s += `App in iPhone ${teamData[`${m.id}_i_in`] || 0}: App in =${teamData[`${m.id}_i_in`] || 0} / Approve =${teamData[`${m.id}_i_app`] || 0}\n`;
         s += `App in SMP ${teamData[`${m.id}_s_in`] || 0} : App in ${teamData[`${m.id}_s_in`] || 0}/Approve ${teamData[`${m.id}_s_app`] || 0}\n\n`;
@@ -208,7 +208,7 @@ export default function App() {
     });
     s += `…….\nPC Brand App in ${pcSum}\n\n`;
     config.teamMembers.forEach(m => {
-      if (!m.isPIA) s += `${m.name}\nApp in = ${teamData[`${m.id}_in`] || 0} / Approve =${teamData[`${m.id}_app`] || 0}\n\n`;
+      if (m.category !== "PIA") s += `${m.name}\nApp in = ${teamData[`${m.id}_in`] || 0} / Approve =${teamData[`${m.id}_app`] || 0}\n\n`;
     });
     s += `Total App in Target Today = ${teamMeta.target}\nTotal App in Today = ${tin}\nTotal Approve Today = ${tapp}`;
     return s;
@@ -247,14 +247,32 @@ export default function App() {
     if (!window.confirm("ยืนยันการลบหัวข้อนี้?")) return;
     saveConfigToDB({ ...config, salesFields: config.salesFields.filter(f => f.id !== id) });
   };
+  const [newTeamCategory, setNewTeamCategory] = useState("PC");
+
   const adminAddTeam = () => {
     if (!newTeamName.trim()) return;
-    saveConfigToDB({ ...config, teamMembers: [...config.teamMembers, { id: `tm_${Date.now()}`, name: newTeamName.trim(), isPIA: newTeamIsPIA }] });
+    saveConfigToDB({ ...config, teamMembers: [...config.teamMembers, { id: `tm_${Date.now()}`, name: newTeamName.trim(), category: newTeamCategory }] });
     setNewTeamName("");
   };
-  const adminRemoveTeam = (id) => {
-    if (!window.confirm("ยืนยันการลบพนักงานคนนี้?")) return;
-    saveConfigToDB({ ...config, teamMembers: config.teamMembers.filter(m => m.id !== id) });
+  const reorderTeamMember = async (id, direction) => {
+    const members = [...config.teamMembers];
+    const index = members.findIndex(m => m.id === id);
+    if (index === -1) return;
+    const categoryMembers = members.filter(m => m.category === members[index].category);
+    const categoryIndex = categoryMembers.findIndex(m => m.id === id);
+    
+    if (direction === "up" && categoryIndex > 0) {
+      const targetId = categoryMembers[categoryIndex - 1].id;
+      const targetIndex = members.findIndex(m => m.id === targetId);
+      [members[index], members[targetIndex]] = [members[targetIndex], members[index]];
+    } else if (direction === "down" && categoryIndex < categoryMembers.length - 1) {
+      const targetId = categoryMembers[categoryIndex + 1].id;
+      const targetIndex = members.findIndex(m => m.id === targetId);
+      [members[index], members[targetIndex]] = [members[targetIndex], members[index]];
+    } else {
+      return;
+    }
+    await saveConfigToDB({ ...config, teamMembers: members });
   };
 
   if (loading) return (
@@ -435,62 +453,66 @@ export default function App() {
             ))}
           </div>
 
-          <div className="glass">
-            <div className="section-header"><span style={{ fontSize: 13, fontWeight: 700, color: "#4f46e5" }}>PIA</span></div>
-            {config.teamMembers.filter(m => m.isPIA).map(m => (
-              <div key={m.id} className="person-card">
-                <div className="person-title">{m.name}</div>
-                <div className="field-row" style={{ marginBottom: 6 }}>
-                  <span className="tag tag-green">iPhone</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_i_in`, -1)}>−</button>
-                    <input className="num-input" type="number" value={teamData[`${m.id}_i_in`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_i_in`]: parseInt(e.target.value) || 0 })} />
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_i_in`, 1)}>+</button>
-                    <span className="sep">/</span>
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_i_app`, -1)}>−</button>
-                    <input className="num-input" type="number" value={teamData[`${m.id}_i_app`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_i_app`]: parseInt(e.target.value) || 0 })} />
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_i_app`, 1)}>+</button>
-                  </div>
-                </div>
-                <div className="field-row">
-                  <span className="tag tag-orange">SMP</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_s_in`, -1)}>−</button>
-                    <input className="num-input" type="number" value={teamData[`${m.id}_s_in`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_s_in`]: parseInt(e.target.value) || 0 })} />
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_s_in`, 1)}>+</button>
-                    <span className="sep">/</span>
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_s_app`, -1)}>−</button>
-                    <input className="num-input" type="number" value={teamData[`${m.id}_s_app`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_s_app`]: parseInt(e.target.value) || 0 })} />
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_s_app`, 1)}>+</button>
-                  </div>
-                </div>
+          {["PIA", "PC", "PT", "SP"].map(cat => (
+            <div key={cat} className="glass">
+              <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#4f46e5" }}>{cat}</span>
               </div>
-            ))}
-          </div>
-
-          <div className="glass">
-            <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#4f46e5" }}>📊 PC Brand</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#6366f1" }}>App in {teamTotals.pcSum}</span>
+              {config.teamMembers.filter(m => m.category === cat).map((m, idx, arr) => (
+                <div key={m.id} className="person-card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div className="person-title">{idx + 1}. {m.name}</div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className="step-btn" style={{ width: 24, height: 24, fontSize: 12 }} onClick={() => reorderTeamMember(m.id, "up")}>▲</button>
+                      <button className="step-btn" style={{ width: 24, height: 24, fontSize: 12 }} onClick={() => reorderTeamMember(m.id, "down")}>▼</button>
+                    </div>
+                  </div>
+                  {/* ... rest of the rendering ... */}
+                  {cat === "PIA" ? (
+                    <>
+                      <div className="field-row" style={{ marginBottom: 6 }}>
+                        <span className="tag tag-green">iPhone</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <button className="step-btn" onClick={() => chgTeam(`${m.id}_i_in`, -1)}>−</button>
+                          <input className="num-input" type="number" value={teamData[`${m.id}_i_in`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_i_in`]: parseInt(e.target.value) || 0 })} />
+                          <button className="step-btn" onClick={() => chgTeam(`${m.id}_i_in`, 1)}>+</button>
+                          <span className="sep">/</span>
+                          <button className="step-btn" onClick={() => chgTeam(`${m.id}_i_app`, -1)}>−</button>
+                          <input className="num-input" type="number" value={teamData[`${m.id}_i_app`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_i_app`]: parseInt(e.target.value) || 0 })} />
+                          <button className="step-btn" onClick={() => chgTeam(`${m.id}_i_app`, 1)}>+</button>
+                        </div>
+                      </div>
+                      <div className="field-row">
+                        <span className="tag tag-orange">SMP</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <button className="step-btn" onClick={() => chgTeam(`${m.id}_s_in`, -1)}>−</button>
+                          <input className="num-input" type="number" value={teamData[`${m.id}_s_in`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_s_in`]: parseInt(e.target.value) || 0 })} />
+                          <button className="step-btn" onClick={() => chgTeam(`${m.id}_s_in`, 1)}>+</button>
+                          <span className="sep">/</span>
+                          <button className="step-btn" onClick={() => chgTeam(`${m.id}_s_app`, -1)}>−</button>
+                          <input className="num-input" type="number" value={teamData[`${m.id}_s_app`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_s_app`]: parseInt(e.target.value) || 0 })} />
+                          <button className="step-btn" onClick={() => chgTeam(`${m.id}_s_app`, 1)}>+</button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="field-row">
+                      <span style={{ fontSize: 12, color: "#64748b" }}>App in / Approve</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <button className="step-btn" onClick={() => chgTeam(`${m.id}_in`, -1)}>−</button>
+                        <input className="num-input" type="number" value={teamData[`${m.id}_in`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_in`]: parseInt(e.target.value) || 0 })} />
+                        <button className="step-btn" onClick={() => chgTeam(`${m.id}_in`, 1)}>+</button>
+                        <span className="sep">/</span>
+                        <button className="step-btn" onClick={() => chgTeam(`${m.id}_app`, -1)}>−</button>
+                        <input className="num-input" type="number" value={teamData[`${m.id}_app`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_app`]: parseInt(e.target.value) || 0 })} />
+                        <button className="step-btn" onClick={() => chgTeam(`${m.id}_app`, 1)}>+</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-            {config.teamMembers.filter(m => !m.isPIA).map(m => (
-              <div key={m.id} className="person-card">
-                <div className="person-title">{m.name}</div>
-                <div className="field-row">
-                  <span style={{ fontSize: 12, color: "#64748b" }}>App in / Approve</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_in`, -1)}>−</button>
-                    <input className="num-input" type="number" value={teamData[`${m.id}_in`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_in`]: parseInt(e.target.value) || 0 })} />
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_in`, 1)}>+</button>
-                    <span className="sep">/</span>
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_app`, -1)}>−</button>
-                    <input className="num-input" type="number" value={teamData[`${m.id}_app`] || 0} onChange={e => setTeamData({ ...teamData, [`${m.id}_app`]: parseInt(e.target.value) || 0 })} />
-                    <button className="step-btn" onClick={() => chgTeam(`${m.id}_app`, 1)}>+</button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          ))}
 
           <div className="glass" style={{ background: "rgba(236,253,245,0.7)", border: "1px solid rgba(167,243,208,0.9)" }}>
             <div className="label-text" style={{ color: "#047857", marginBottom: 12 }}>สรุปยอดรวมทีม</div>
@@ -564,9 +586,11 @@ export default function App() {
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>เพิ่มพนักงานใหม่</div>
               <input className="add-input" placeholder="พิมพ์ชื่อพนักงาน..." value={newTeamName} onChange={e => setNewTeamName(e.target.value)} />
               <div style={{ display: "flex", gap: 8 }}>
-                <select className="add-input" style={{ marginBottom: 0 }} value={newTeamIsPIA} onChange={e => setNewTeamIsPIA(e.target.value === "true")}>
-                  <option value="false">PC / Part-time / SP</option>
-                  <option value="true">PIA</option>
+                <select className="add-input" style={{ marginBottom: 0 }} value={newTeamCategory} onChange={e => setNewTeamCategory(e.target.value)}>
+                  <option value="PC">PC</option>
+                  <option value="PT">Part-time</option>
+                  <option value="SP">SP</option>
+                  <option value="PIA">PIA</option>
                 </select>
                 <button className="add-btn" onClick={adminAddTeam}>เพิ่มคน</button>
               </div>
