@@ -199,19 +199,9 @@ export default function App() {
   const generateTeamReport = () => {
     const { tin, tapp, pcSum } = getTeamTotals();
     
-    // Auto-calculate staff count
-    let activeStaffCount = 0;
-    config.teamMembers.forEach(m => {
-        let hasActivity = false;
-        if (m.position === "PIA (พนักงานร้าน)") {
-            if ((teamData[`${m.id}_i_in`] || 0) > 0 || (teamData[`${m.id}_i_app`] || 0) > 0 || (teamData[`${m.id}_s_in`] || 0) > 0 || (teamData[`${m.id}_s_app`] || 0) > 0) hasActivity = true;
-        } else {
-            if ((teamData[`${m.id}_in`] || 0) > 0 || (teamData[`${m.id}_app`] || 0) > 0) hasActivity = true;
-        }
-        if (hasActivity) activeStaffCount++;
-    });
-
-    let s = `ID ร้าน :790\nชื่อร้าน : ${config.branchName}\n`;
+    // Total staff is derived from the role counts selected above.
+    const activeStaffCount = (parseInt(teamMeta.pia) || 0) + (parseInt(teamMeta.ss) || 0) + (parseInt(teamMeta.pt) || 0) + (parseInt(teamMeta.pc) || 0) + (parseInt(teamMeta.pctrue) || 0);
+    let s = `ID ร้าน :790\\nชื่อร้าน : ${config.branchName}\\n`;
     s += `จำนวนคนมาทำงาน : ${activeStaffCount}\n\n`;
     
     // Group PIA/SP
@@ -450,8 +440,11 @@ export default function App() {
         <div style={{ width: "100%", maxWidth: 460 }}>
           <div className="glass">
             <div className="label-text" style={{ marginBottom: 12 }}>จำนวนพนักงานปฏิบัติงาน</div>
+            <div className="field-row" style={{ marginBottom: 10 }}>
+              <span className="field-label">จำนวนคนมาทำงาน</span>
+              <strong>{(parseInt(teamMeta.pia) || 0) + (parseInt(teamMeta.ss) || 0) + (parseInt(teamMeta.pt) || 0) + (parseInt(teamMeta.pc) || 0) + (parseInt(teamMeta.pctrue) || 0)}</strong>
+            </div>
             {[
-              { key: "staff", label: "จำนวนคนมาทำงาน" },
               { key: "pia", label: "PIA" },
               { key: "ss", label: "Super sale" },
               { key: "pt", label: "Part-time" },
@@ -462,7 +455,7 @@ export default function App() {
                 <span className="field-label">{label}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <button className="step-btn" onClick={() => chgMeta(key, -1)}>−</button>
-                  <input className="num-input" type="number" value={teamMeta[key]} onChange={e => setTeamMeta({ ...teamMeta, [key]: parseInt(e.target.value) || 0 })} />
+                  <input className="num-input" type="number" min="0" value={teamMeta[key]} onChange={e => setTeamMeta({ ...teamMeta, [key]: Math.max(0, parseInt(e.target.value) || 0) })} />
                   <button className="step-btn" onClick={() => chgMeta(key, 1)}>+</button>
                 </div>
               </div>
