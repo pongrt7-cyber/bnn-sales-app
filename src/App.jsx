@@ -66,6 +66,8 @@ export default function App() {
   const [teamMeta, setTeamMeta] = useState({ staff: 7, pia: 1, ss: 1, pt: 1, pc: 3, pctrue: 1, target: 8 });
   const [teamData, setTeamData] = useState({});
   const [teamCopied, setTeamCopied] = useState(false);
+  const [teamSent, setTeamSent] = useState(false);
+  const [teamSending, setTeamSending] = useState(false);
 
   // ---- Admin ----
   const [adminBranch, setAdminBranch] = useState("");
@@ -235,6 +237,24 @@ export default function App() {
 
   const copyTeamReport = () => {
     navigator.clipboard.writeText(generateTeamReport()).then(() => { setTeamCopied(true); setTimeout(() => setTeamCopied(false), 2000); });
+  };
+
+  const handleSendTeamLine = async () => {
+    setTeamSending(true);
+    try {
+      const response = await fetch("https://bnn-sales-app.vercel.app/api/send-line", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: generateTeamReport() }),
+      });
+      if (!response.ok) throw new Error("LINE send failed");
+      setTeamSent(true);
+      setTimeout(() => setTeamSent(false), 3000);
+    } catch (e) {
+      alert("ส่ง LINE ไม่สำเร็จ");
+    } finally {
+      setTeamSending(false);
+    }
   };
 
   const resetTeamData = () => {
@@ -526,10 +546,13 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, marginBottom: 16, width: "100%", maxWidth: 460 }}>
-            <button className="reset-btn" onClick={resetTeamData} style={{ flex: 1, padding: "12px" }}>↺ รีเซ็ตยอดทีม</button>
-            <button className="update-btn" onClick={copyTeamReport} style={{ flex: 1, padding: "12px", background: teamCopied ? "#22c55e" : "rgba(99,102,241,0.9)" }}>
-              {teamCopied ? "✓ คัดลอกแล้ว!" : "📋 Copy ข้อความ"}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, width: "100%", maxWidth: 460 }}>
+            <button className="reset-btn" onClick={resetTeamData} style={{ flex: 1, padding: "12px 8px" }}>↺ รีเซ็ต</button>
+            <button className="update-btn" onClick={copyTeamReport} style={{ flex: 1, padding: "12px 8px", background: teamCopied ? "#22c55e" : "rgba(99,102,241,0.9)" }}>
+              {teamCopied ? "✓ คัดลอกแล้ว!" : "📋 Copy"}
+            </button>
+            <button className="line-btn" onClick={handleSendTeamLine} disabled={teamSending} style={{ flex: 1, padding: "12px 8px" }}>
+              {teamSending ? "กำลังส่ง..." : teamSent ? "✓ ส่งแล้ว" : "ส่งไป LINE"}
             </button>
           </div>
 
